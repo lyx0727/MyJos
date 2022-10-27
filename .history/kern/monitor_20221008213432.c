@@ -9,9 +9,7 @@
 
 #include <kern/console.h>
 #include <kern/monitor.h>
-#include <kern/pmap.h>
 #include <kern/kdebug.h>
-#include <kern/trap.h>
 
 #define CMDBUF_SIZE	80	// enough for one VGA text line
 
@@ -26,8 +24,6 @@ struct Command {
 static struct Command commands[] = {
 	{ "help", "Display this list of commands", mon_help },
 	{ "kerninfo", "Display information about the kernel", mon_kerninfo },
-	{ "backtrace", "Display backtrace", mon_backtrace },
-	{ "showmappings", "Display mappings between physical address and virtual address", mon_showmappings }
 };
 
 /***** Implementations of basic kernel monitor commands *****/
@@ -62,8 +58,6 @@ int
 mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 {
 	uint32_t* ebp = (uint32_t*)read_ebp();
-	struct Eipdebuginfo info;
-	memset(&info, 0, sizeof(struct Eipdebuginfo));
 	int i;
 	while(ebp){
 		uint32_t eip = *(ebp + 1);
@@ -72,62 +66,11 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 			cprintf(" %08x", *(ebp + 2 + i));
 		}
 		cprintf("\n");
-		if(debuginfo_eip(eip, &info) == 0){
-			cprintf("%s:%d: ", info.eip_file, info.eip_line);
-			cprintf("%.*s", info.eip_fn_namelen, info.eip_fn_name);
-			cprintf("+%d", eip - info.eip_fn_addr);
-			cprintf("\n");
-		}
 		ebp = (uint32_t*)(*ebp);
 	}
 	return 0;
 }
 
-int
-mon_showmappings(int argc, char **argv, struct Trapframe *tf)
-{
-	uint32_t begin, end;
-	char* endptr;
-	pte_t pte, *pte_p;
-	char perm[10] = "P/U/W";
-	size_t perm_len = strlen(perm);
-	const uint32_t PERM[10] = { PTE_P, PTE_U, PTE_W };
-	if (argc == 1 || argc > 3) {
-		cprintf("Usage: showmappings BEGIN [END]\n");	
-	} else if (argc > 1) {
-		begin = ROUNDDOWN((uint32_t)strtol(argv[1], &endptr, 16), PGSIZE);
-		if (*endptr != '\0') {
-			cprintf("Wrong address!");
-			return 0;
-		}
-		if (argc == 2) {
-			end = begin + PGSIZE;
-		} else {
-			end = ROUNDUP((uint32_t)strtol(argv[2], &endptr, 16), PGSIZE);
-			if (*endptr != '\0') {
-				cprintf("Wrong address!");
-				return 0;
-			}
-		}
-		cprintf("Virtual\tPhysical\tPermission\n");
-		for (; begin < end; begin += PGSIZE) {
-			struct PageInfo *pp = page_lookup(kern_pgdir, (void *)begin, &pte_p);
-			if (pp != NULL) {
-				pte = *pte_p;
-				uint32_t i;
-				for (i = 0; i < perm_len; i += 2) {
-					if (!(PERM[i / 2] & pte)) {
-						perm[i] = 'X';
-					}
-				}
-				cprintf("%08x\t%08x\t%s\n", begin, page2pa(pp), perm);
-			} else {
-				cprintf("%08x\t%s\t%s\n", begin, "NULL", "NULL");
-			}
-		}
-	}
-	return 0;
-}
 
 
 /***** Kernel monitor command interpreter *****/
@@ -182,8 +125,6 @@ monitor(struct Trapframe *tf)
 	cprintf("Welcome to the JOS kernel monitor!\n");
 	cprintf("Type 'help' for a list of commands.\n");
 
-	if (tf != NULL)
-		print_trapframe(tf);
 
 	while (1) {
 		buf = readline("K> ");
