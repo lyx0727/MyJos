@@ -1,6 +1,12 @@
 {
     "files.associations": {
         "assert.h": "c",
-        "kdebug.h": "c"
+        "kdebug.h": "c",
+        "env.h": "c",
+        "monitor.h": "c",
+        "kclock.h": "c",
+        "pmap.h": "c",
+        "trap.h": "c",
+        "console.h": "c"
     }
 }
