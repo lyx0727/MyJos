@@ -65,7 +65,46 @@ trap_init(void)
 	extern struct Segdesc gdt[];
 
 	// LAB 3: Your code here.
-
+	void DIVIDE		();
+	void DEBUG 		();
+	void NMI   		();
+	void BRKPT 		();
+	void OFLOW 		();
+	void BOUND 		();
+	void ILLOP 		();
+	void DEVICE		();
+	void DBLFLT		();
+	void TSS		();    
+	void SEGNP  	();
+	void STACK  	();
+	void GPFLT  	();
+	void PGFLT  	();
+	void FPERR  	();
+	void ALIGN  	();
+	void MCHK   	();
+	void SIMDERR	();
+	void SYSCALL	();
+	static void(*TRAPS[])() = {
+		DIVIDE, DEBUG, NMI, BRKPT, OFLOW, BOUND, ILLOP, DEVICE, DBLFLT, 
+		TSS, SEGNP, STACK, GPFLT, PGFLT, 
+		FPERR, ALIGN, MCHK, SIMDERR,
+		SYSCALL
+	};
+	static uint8_t TRAP_NUMBERS[] = {
+		T_DIVIDE, T_DEBUG, T_NMI, T_BRKPT, T_OFLOW, T_BOUND, T_ILLOP, T_DEVICE, T_DBLFLT, 
+		T_TSS, T_SEGNP, T_STACK, T_GPFLT, T_PGFLT, 
+		T_FPERR, T_ALIGN, T_MCHK, T_SIMDERR,
+		T_SYSCALL
+	};
+	int i;
+	for (i = 0; i < ARRAY_SIZE(TRAPS); i++) {
+		int istrap = 1;
+		if (TRAP_NUMBERS[i] == T_SYSCALL) {
+			// interupt
+			istrap = 0;
+		}
+		SETGATE(idt[TRAP_NUMBERS[i]], istrap, GD_KT, TRAPS[i], 0);
+	}
 	// Per-CPU setup 
 	trap_init_percpu();
 }
